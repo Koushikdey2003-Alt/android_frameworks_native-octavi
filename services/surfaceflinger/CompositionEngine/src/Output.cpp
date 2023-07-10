@@ -777,7 +777,6 @@ void Output::writeCompositionState(const compositionengine::CompositionRefreshAr
     }
 
     editState().earliestPresentTime = refreshArgs.earliestPresentTime;
-    editState().previousPresentFence = refreshArgs.previousPresentFence;
     editState().expectedPresentTime = refreshArgs.expectedPresentTime;
 
     compositionengine::OutputLayer* peekThroughLayer = nullptr;
@@ -1275,7 +1274,8 @@ std::optional<base::unique_fd> Output::composeSurfaces(
             std::any_of(clientCompositionLayers.begin(), clientCompositionLayers.end(),
                         [outputDataspace =
                                  clientCompositionDisplay.outputDataspace](const auto& layer) {
-                            return layer.sourceDataspace != outputDataspace;
+                            return layer.sourceDataspace != ui::Dataspace::UNKNOWN
+                                    && layer.sourceDataspace != outputDataspace;
                         });
     if (expensiveRenderingExpected) {
         setExpensiveRenderingExpected(true);

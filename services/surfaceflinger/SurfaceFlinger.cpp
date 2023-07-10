@@ -2242,8 +2242,21 @@ void SurfaceFlinger::composite(nsecs_t frameTime, int64_t vsyncId)
     const auto expectedPresentTime = mExpectedPresentTime.load();
     const auto prevVsyncTime = mScheduler->getPreviousVsyncFrom(expectedPresentTime);
     const auto hwcMinWorkDuration = mVsyncConfiguration->getCurrentConfigs().hwcMinWorkDuration;
-    refreshArgs.earliestPresentTime = prevVsyncTime - hwcMinWorkDuration;
-    refreshArgs.previousPresentFence = mPreviousPresentFences[0].fenceTime;
+    const auto vsyncPeriod = mScheduler->getDisplayStatInfo(frameTime).vsyncPeriod;
+    const bool threeVsyncsAhead = mExpectedPresentTime - frameTime > 2 * vsyncPeriod;
+
+    // We should wait for the earliest present time if HWC doesn't support ExpectedPresentTime,
+    // and the next vsync is not already taken by the previous frame.
+    const bool waitForEarliestPresent =
+            !getHwComposer().getComposer()->isSupported(
+                    Hwc2::Composer::OptionalFeature::ExpectedPresentTime) &&
+            (threeVsyncsAhead ||
+             mPreviousPresentFences[0].fenceTime->getSignalTime() != Fence::SIGNAL_TIME_PENDING);
+
+    if (waitForEarliestPresent) {
+        refreshArgs.earliestPresentTime = prevVsyncTime - hwcMinWorkDuration;
+    }
+
     refreshArgs.scheduledFrameTime = mScheduler->getScheduledFrameTime();
     refreshArgs.expectedPresentTime = expectedPresentTime;
 
@@ -7678,7 +7691,7 @@ status_t SurfaceComposerAIDL::checkControlDisplayBrightnessPermission() {
     IPCThreadState* ipc = IPCThreadState::self();
     const int pid = ipc->getCallingPid();
     const int uid = ipc->getCallingUid();
-    if ((uid != AID_GRAPHICS) &&
+    if ((uid != AID_GRAPHICS) && (uid != AID_SYSTEM) &&
         !PermissionCache::checkPermission(sControlDisplayBrightness, pid, uid)) {
         ALOGE("Permission Denial: can't control brightness pid=%d, uid=%d", pid, uid);
         return PERMISSION_DENIED;

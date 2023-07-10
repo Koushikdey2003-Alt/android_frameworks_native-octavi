@@ -193,7 +193,7 @@ public:
 
     virtual status_t setFrameRate(float frameRate, int8_t compatibility,
                                   int8_t changeFrameRateStrategy);
-    virtual status_t setFrameTimelineInfo(const FrameTimelineInfo& info);
+    virtual status_t setFrameTimelineInfo(uint64_t frameNumber, const FrameTimelineInfo& info);
 
 protected:
     virtual ~Surface();
@@ -461,6 +461,8 @@ protected:
     // mHdrMetadata is the HDR metadata that will be used for the next buffer
     // queue operation.  There is no HDR metadata by default.
     HdrMetadata mHdrMetadata;
+
+    uint32_t mHdrMetaIsSet{0};
 
     // mCrop is the crop rectangle that will be used for the next buffer
     // that gets queued. It is set by calling setCrop.
